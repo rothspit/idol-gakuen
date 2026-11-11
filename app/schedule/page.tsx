@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { getBusinessToday } from '@/lib/business-date'
-import { CRM_API_BASE, IDOL_STORE_ID, idolWaitStatusBadge } from '@/lib/crm-api'
+import { IDOL_STORE_ID } from '@/lib/idol-reservation'
 
 const DAYS = ['日', '月', '火', '水', '木', '金', '土']
 
@@ -27,10 +27,7 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(true)
 
   const dateStr = toDateStr(tabs[selected])
-  const businessTodayStr = toDateStr(getBusinessToday())
-  const isTodayTab = dateStr === businessTodayStr
 
-  // スケジュール取得（CRM pull）
   useEffect(() => {
     let ignore = false
     setLoading(true)
@@ -38,15 +35,14 @@ export default function SchedulePage() {
     const fetchSchedules = async () => {
       try {
         const res = await fetch(
-          `${CRM_API_BASE}/idol/schedules?store_id=${IDOL_STORE_ID}&date=${dateStr}`,
-          { cache: 'no-store' },
+          `/api/idol/schedule-display?date=${dateStr}&store_id=${IDOL_STORE_ID}`,
+          { cache: 'no-store' }
         )
         if (!res.ok) throw new Error('Failed to fetch schedules')
-        
+
         const json = await res.json()
-        const dayData = json.schedules && json.schedules.length > 0 ? json.schedules[0] : null
-        const scheduledCasts = dayData ? dayData.casts : []
-        
+        const scheduledCasts = json.casts ?? []
+
         if (!ignore) {
           setCasts(scheduledCasts)
           setLoading(false)
@@ -64,8 +60,8 @@ export default function SchedulePage() {
     return () => { ignore = true }
   }, [dateStr])
 
-  const img = (g: any) => g.images?.[0] || g.image1_url || null
-  const time = (t: string | null) => t ? t.substring(0, 5) : '--:--'
+  const img = (g: any) => g.profile_image || g.image || g.thumbnail || g.idol_image_path || null
+  const time = (t: string | null | undefined) => (t ? t.substring(0, 5) : '--:--')
 
   return (
     <div className="min-h-screen bg-slate-50 pb-28">
@@ -131,21 +127,13 @@ export default function SchedulePage() {
         ) : (
           <div className="space-y-3">
             {casts.map((g: any) => {
-              const badge = idolWaitStatusBadge(g.wait_status, g.attend_end_time, isTodayTab)
               return (
                 <Link
                   key={`schedule-${g.id}`}
                   href={`/girls/${g.cast_id}`}
-                  className={`flex items-center gap-3 bg-white rounded-xl p-3 border border-slate-100 shadow-sm active:scale-[0.98] transition-transform ${badge?.dimCard ? 'opacity-60' : ''}`}
+                  className="flex items-center gap-3 bg-white rounded-xl p-3 border border-slate-100 shadow-sm active:scale-[0.98] transition-transform"
                 >
-                  <div className="relative w-16 h-16 rounded-full overflow-hidden bg-slate-200 shrink-0 border-2 border-white shadow">
-                    {badge && (
-                      <span
-                        className={`absolute -top-1 -right-1 z-10 px-1.5 py-0.5 rounded-full text-[8px] leading-tight ${badge.className}`}
-                      >
-                        {badge.label}
-                      </span>
-                    )}
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-200 shrink-0 border-2 border-white shadow">
                     {img(g) ? (
                       <img src={img(g)} alt={g.name} className="w-full h-full object-cover" />
                     ) : (
@@ -187,7 +175,7 @@ export default function SchedulePage() {
             <span className="text-[10px] font-bold">電話で空き確認</span>
             <span className="text-base font-black leading-none">050-1745-9665</span>
           </a>
-          <Link href="/student-council" className="flex-1 bg-pink-500 text-white rounded-full flex items-center justify-center gap-2 py-2 shadow active:scale-95 transition-transform">
+          <Link href="/funabashi/reserve" className="flex-1 bg-pink-500 text-white rounded-full flex items-center justify-center gap-2 py-2 shadow active:scale-95 transition-transform">
             <span className="text-xl">&#x1F4AC;</span>
             <span className="font-black">今すぐ指名</span>
           </Link>

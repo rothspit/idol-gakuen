@@ -15,6 +15,7 @@ interface ReservationData {
   phone: string
   usePoints: boolean
   timestamp: string
+  storeName: string
 }
 
 export async function POST(request: NextRequest) {
@@ -22,7 +23,9 @@ export async function POST(request: NextRequest) {
     const data: ReservationData = await request.json()
 
     // バリデーション
-    if (!data.cast?.name || !data.course?.name || !data.startTime || !data.phone) {
+    const storeName = data.storeName?.trim()
+
+    if (!storeName || !data.cast?.name || !data.course?.name || !data.startTime || !data.phone) {
       return NextResponse.json(
         { error: '必須項目が不足しています' },
         { status: 400 }
@@ -38,11 +41,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Discord Webhook URL
-    const webhookUrl = process.env.DISCORD_WEBHOOK_URL
-
     // 料金計算
     const finalPrice = data.usePoints ? data.course.price - 2000 : data.course.price
+
+    // Discord Webhook URL
+    const webhookUrl = process.env.DISCORD_WEBHOOK_URL
 
     // Discordメッセージを構築
     const discordMessage = {
@@ -51,26 +54,11 @@ export async function POST(request: NextRequest) {
         {
           color: 0xff69b4, // ピンク色
           fields: [
-            {
-              name: '👸 指名',
-              value: data.cast.name,
-              inline: true,
-            },
-            {
-              name: '⏱ コース',
-              value: `${data.course.name}（${data.course.time}）`,
-              inline: true,
-            },
-            {
-              name: '🕐 希望時間',
-              value: data.startTime,
-              inline: true,
-            },
-            {
-              name: '📞 電話番号',
-              value: data.phone,
-              inline: true,
-            },
+            { name: '🏬 店舗名', value: storeName, inline: true },
+            { name: '👸 指名', value: data.cast.name, inline: true },
+            { name: '⏱ コース', value: `${data.course.name}（${data.course.time}）`, inline: true },
+            { name: '🕐 希望時間', value: data.startTime, inline: true },
+            { name: '📞 電話番号', value: data.phone, inline: true },
             {
               name: '💰 料金',
               value: `¥${finalPrice.toLocaleString()}${data.usePoints ? ' (2,000pt利用)' : ''}`,

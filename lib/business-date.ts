@@ -9,3 +9,8 @@ export function getBusinessToday(): Date {
   now.setHours(0, 0, 0, 0)
   return now
 }
+
+export function getBusinessTodayString(): string {
+  const d = getBusinessToday()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}

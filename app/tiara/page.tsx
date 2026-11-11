@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { supabaseTiara } from '@/lib/supabase-tiara'
 
 // チャットメッセージの型定義
 type MessageType = 'bot' | 'user' | 'card' | 'menu' | 'course' | 'time' | 'phone' | 'confirm' | 'submit' | 'complete' | 'waiting' | 'proposal'
@@ -78,42 +79,43 @@ export default function TiaraPage() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // 予約ステータス（CRM poll）
+  // 予約ステータスのリアルタイム監視
   useEffect(() => {
-    if (!currentBookingId || !phoneNumber) return
+    if (!currentBookingId) return
 
-    let cancelled = false
-    let lastStatus = 'pending'
+    const channel = supabaseTiara
+      .channel(`tiara-booking-${currentBookingId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'bookings',
+          filter: `id=eq.${currentBookingId}`,
+        },
+        (payload) => {
+          const newStatus = (payload.new as any).status
+          const proposalData = (payload.new as any).proposal_data
 
-    const poll = async () => {
-      try {
-        const res = await fetch(
-          `/api/tiara/bookings/${currentBookingId}?phone=${encodeURIComponent(phoneNumber)}`,
-          { cache: 'no-store' },
-        )
-        if (!res.ok || cancelled) return
-        const data = await res.json()
-        const newStatus = data.status as string
-        if (newStatus === lastStatus) return
-        lastStatus = newStatus
-
-        if (newStatus === 'confirmed') {
-          addMessage('bot', '✨ ご予約が確定いたしました ✨\n\nお時間になりましたらお越しくださいませ。\nスタッフ一同、心よりお待ち申し上げております。')
-        } else if (newStatus === 'rejected') {
-          addMessage('bot', '誠に申し訳ございませんが、ご希望のお時間でのご案内が難しい状況でございます。\n\n別のお時間をご検討いただけますと幸いでございます。')
+          if (newStatus === 'confirmed') {
+            addMessage('bot', '✨ ご予約が確定いたしました ✨\n\nお時間になりましたらお越しくださいませ。\nスタッフ一同、心よりお待ち申し上げております。')
+          } else if (newStatus === 'negotiating' && proposalData) {
+            addMessage('proposal', '', {
+              original_time: proposalData.original_time,
+              new_time: proposalData.new_time,
+              message: proposalData.message,
+            })
+          } else if (newStatus === 'rejected') {
+            addMessage('bot', '誠に申し訳ございませんが、ご希望のお時間でのご案内が難しい状況でございます。\n\n別のお時間をご検討いただけますと幸いでございます。')
+          }
         }
-      } catch {
-        // ignore
-      }
-    }
+      )
+      .subscribe()
 
-    poll()
-    const interval = setInterval(poll, 5000)
     return () => {
-      cancelled = true
-      clearInterval(interval)
+      supabaseTiara.removeChannel(channel)
     }
-  }, [currentBookingId, phoneNumber])
+  }, [currentBookingId])
 
   // チャット初期化
   const initChat = () => {
@@ -151,6 +153,7 @@ export default function TiaraPage() {
   ]
 
   const timeSlots = ['14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00']
+  const storeName = 'THE TIARA'
 
   // メニュー選択ハンドラー
   const handleMenuSelect = (choice: string) => {
@@ -209,7 +212,7 @@ export default function TiaraPage() {
     addMessage('user', phone)
     setTimeout(() => {
       addMessage('bot', `ありがとうございます。\n\n📍 場所: 秋葉原プライベートルーム\n（詳細はご予約確定後にご案内いたします）`)
-      setTimeout(() => addMessage('confirm', '', { cast: selectedCast, course: selectedCourse, time: selectedTime, phone }), 800)
+      setTimeout(() => addMessage('confirm', '', { cast: selectedCast, course: selectedCourse, time: selectedTime, phone, storeName }), 800)
     }, 500)
   }
 
@@ -238,6 +241,7 @@ export default function TiaraPage() {
           startTime: selectedTime,
           phone: phoneNumber,
           usePoints,
+          storeName,
         }),
       })
 
@@ -253,7 +257,7 @@ export default function TiaraPage() {
       setMessages(prev => prev.filter(m => m.type !== 'submit'))
 
       const price = selectedCourse.price - (usePoints ? 2000 : 0)
-      addMessage('bot', `✨ ご予約リクエストを承りました ✨\n\n👸 ${selectedCast.name}\n📋 ${selectedCourse.name}（${selectedCourse.time}）\n🕐 ${selectedTime}〜\n💰 ¥${price.toLocaleString()}\n📞 ${phoneNumber}`)
+      addMessage('bot', `✨ ご予約リクエストを承りました ✨\n\n🏬 ${storeName}\n👸 ${selectedCast.name}\n📋 ${selectedCourse.name}（${selectedCourse.time}）\n🕐 ${selectedTime}〜\n💰 ¥${price.toLocaleString()}\n📞 ${phoneNumber}`)
       setTimeout(() => {
         addMessage('waiting', '', { bookingId: result.bookingId })
       }, 800)
@@ -845,6 +849,10 @@ export default function TiaraPage() {
                           <div className="bg-white rounded-xl p-4 shadow-md">
                             <p className="font-bold text-sm mb-3 text-center">ご予約内容の確認</p>
                             <div className="space-y-2 text-sm border-b border-gray-100 pb-3 mb-3">
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">店舗名</span>
+                                <span className="font-medium">{msg.data.storeName}</span>
+                              </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-500">セラピスト</span>
                                 <span className="font-medium">{msg.data.cast.name}</span>

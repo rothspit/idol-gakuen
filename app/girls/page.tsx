@@ -1,37 +1,59 @@
 import Link from 'next/link'
-import Image from 'next/image'
-import { CRM_API_BASE, IDOL_STORE_ID } from '@/lib/crm-api'
+import CastImage from '@/components/CastImage'
+import WaitStatusBadge from '@/components/WaitStatusBadge'
+import { fetchCrmCasts, fetchCrmScheduleForDate, getImageUrl } from '@/lib/crm/idol-schedule'
+import { resolveCastStatusBadge } from '@/lib/crm/wait-status'
+import { getBusinessTodayString } from '@/lib/business-date'
+import { IDOL_STORE_ID } from '@/lib/idol-reservation'
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
-async function getGirls() {
-  const res = await fetch(`${CRM_API_BASE}/idol/casts?store_id=${IDOL_STORE_ID}`, {
-    cache: 'no-store' // キャッシュを無効化（常に最新を取得）
+async function getGirlsWithTodayStatus() {
+  const today = getBusinessTodayString()
+  const [casts, scheduleEntries] = await Promise.all([
+    fetchCrmCasts(IDOL_STORE_ID),
+    fetchCrmScheduleForDate(today, IDOL_STORE_ID),
+  ])
+
+  const waitByCastId = new Map(
+    scheduleEntries.map((e) => [
+      Number(e.cast_id),
+      {
+        wait_status: e.wait_status,
+        attend_end_time: e.attend_end_time,
+        status: e.status,
+        is_sokudol: e.is_sokudol,
+        is_new: e.is_new,
+        is_debut_day: e.is_debut_day,
+        is_debut_today: e.is_debut_today,
+      },
+    ])
+  )
+
+  return casts.map((girl) => {
+    const sched = waitByCastId.get(Number(girl.id))
+    return {
+      ...girl,
+      wait_status: sched?.wait_status,
+      attend_end_time: sched?.attend_end_time ?? null,
+      schedule_status: sched?.status,
+      is_sokudol: sched?.is_sokudol,
+      is_new: sched?.is_new ?? (girl as { is_new?: boolean }).is_new,
+      is_debut_day: sched?.is_debut_day,
+      is_debut_today: sched?.is_debut_today,
+    }
   })
-  
-  if (!res.ok) {
-    console.error('Failed to fetch girls from CRM')
-    return []
-  }
-
-  const json = await res.json()
-  return json.casts || []
 }
 
 export default async function GirlsListPage() {
-  const girls = await getGirls()
-
-  // CRM APIからのデータ構造に合わせて調整
-  const getImageUrl = (girl: any) => girl.idol_image_path || girl.profile_image || girl.image || null
-  const getStatusText = (girl: any) => girl.status === '接客中' ? '💕 接客中' : girl.status === '待機中' || girl.status === '即案内可能' || !!girl.is_attending ? '✨ 即ご案内可能' : '💤 お休み中'
+  const girls = await getGirlsWithTodayStatus()
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
-      {/* ヘッダー */}
       <div className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur text-white shadow-lg p-4 flex items-center justify-between">
         <Link href="/funabashi" className="font-bold text-lg">⬅ トップへ戻る</Link>
-        <h1 className="font-bold">在籍キャスト一覧</h1>
+        <h1 className="font-bold">船橋デリヘル 在籍キャスト一覧</h1>
       </div>
 
       <div className="max-w-2xl mx-auto px-2 py-4">
@@ -39,44 +61,86 @@ export default async function GirlsListPage() {
           気になる子がいたら、お気軽にお問い合わせください💕
         </p>
 
-        {/* グリッド表示（全員） */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-          {girls.map((girl: any) => {
+          {girls.map((girl) => {
             const imageUrl = getImageUrl(girl)
+            const badge = resolveCastStatusBadge({
+              waitStatus: girl.wait_status,
+              attendEndTime: girl.attend_end_time,
+              status: girl.schedule_status || girl.status,
+              isSokudol: girl.is_sokudol,
+              useWaitStatus: true,
+            })
+
+            const newcomerLabel =
+              girl.is_debut_today || girl.is_debut_day ? '本日初日！' : girl.is_new ? '新人' : null
+            const avail = (() => {
+              if (girl.is_sokudol || badge.type === 'immediate') return '即ドルOK'
+              if (badge.type === 'busy') {
+                const t = girl.attend_end_time?.slice(0, 5)
+                return t ? `次回 ${t}〜 ご案内可` : '授業中'
+              }
+              if (badge.type === 'closed') return '本日終了'
+              if (girl.today_hours) return girl.today_hours
+              return null
+            })()
+
             return (
               <Link
                 href={`/girls/${girl.id}`}
                 key={girl.id}
-                className="relative aspect-[3/4] bg-slate-200 cursor-pointer overflow-hidden group block"
+                className={`relative aspect-[3/4] bg-slate-200 cursor-pointer overflow-hidden group block ${
+                  badge.dimCard ? 'opacity-70 grayscale' : ''
+                }`}
               >
                 {imageUrl ? (
-                  imageUrl.includes('placehold.co') || imageUrl.endsWith('.svg') ? (
-                    <img src={imageUrl} alt={girl.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                  ) : (
-                    <Image 
-                      src={imageUrl} 
-                      alt={girl.name}
-                      fill
-                      quality={95}
-                      sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                      className="object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
-                  )
+                  <CastImage
+                    src={imageUrl}
+                    alt={girl.name}
+                    fill
+                    className="transition-transform duration-700 group-hover:scale-110"
+                  />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">No Img</div>
                 )}
 
-                <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/80 via-black/20 to-transparent p-2 text-white opacity-90 group-hover:opacity-100 transition-opacity">
-                  <div className="font-bold text-base drop-shadow-md truncate">{girl.name} <span className="text-xs opacity-90 drop-shadow">({girl.age})</span></div>
-                  <div className="text-[10px] text-pink-200 font-medium drop-shadow-md mt-0.5 truncate flex items-center gap-1">
-                    {getStatusText(girl)}
-                    {girl.today_hours ? <span className="bg-white/20 px-1 rounded-sm text-white drop-shadow-md">{girl.today_hours}</span> : null}
+                {newcomerLabel ? (
+                  <span className="absolute top-2 left-2 z-20 text-[10px] font-black bg-amber-400 text-white rounded-full px-2 py-0.5 shadow">
+                    {newcomerLabel}
+                  </span>
+                ) : null}
+
+                {badge.showBadge ? (
+                  <div className="absolute top-2 right-2 z-20 pointer-events-none">
+                    <WaitStatusBadge badge={badge} size="sm" variant="chip" />
                   </div>
+                ) : null}
+
+                <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/80 via-black/20 to-transparent p-2 text-white opacity-90 group-hover:opacity-100 transition-opacity">
+                  <div className="font-bold text-base drop-shadow-md truncate">
+                    {girl.name} <span className="text-xs opacity-90 drop-shadow">({girl.age})</span>
+                  </div>
+                  {avail ? (
+                    <div
+                      className={`text-[10px] font-medium drop-shadow-md mt-0.5 truncate ${
+                        girl.is_sokudol || badge.type === 'immediate' ? 'text-pink-200' : 'text-white/90'
+                      }`}
+                    >
+                      {avail}
+                    </div>
+                  ) : null}
                 </div>
               </Link>
             )
           })}
         </div>
+
+        <p className="text-center text-[10px] text-slate-400 mt-8 leading-relaxed px-4">
+          船橋・西船橋・津田沼のデリヘル「アイドル学園」。
+          <Link href="/funabashi/guide/jk-style" className="text-pink-500 underline ml-1">
+            JK・制服系をお探しの方はこちら
+          </Link>
+        </p>
       </div>
     </div>
   )

@@ -1,5 +1,14 @@
-import Link from 'next/link'
 import type { Metadata } from 'next'
+import Link from 'next/link'
+import { RecruitCta, RecruitNav, RecruitSparkles } from '@/components/recruit/RecruitChrome'
+import {
+  RECRUIT_LINE,
+  RECRUIT_PHONE,
+  RECRUIT_PHONE_TEL,
+  STAFF_HIGHLIGHTS,
+  STAFF_ROLES,
+} from '@/lib/recruit'
+import { STORE } from '@/lib/seo/site'
 
 export const metadata: Metadata = {
   title: 'スタッフ求人 | アイドル学園',
@@ -9,139 +18,142 @@ export const metadata: Metadata = {
 
 export default function StaffRecruitPage() {
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
-      <div className="bg-white p-4 shadow flex justify-between items-center sticky top-0 z-10 border-b border-slate-100">
-        <div>
-          <p className="text-[10px] font-bold text-indigo-500 tracking-widest">STAFF RECRUIT</p>
-          <h1 className="font-black text-slate-800 text-lg">アイドル学園 スタッフ求人</h1>
-        </div>
-        <div className="flex items-center gap-2">
+    <main className="pb-28">
+      <RecruitNav
+        trailing={
           <Link
-            href="/recruit"
-            className="text-[10px] font-bold text-pink-600 underline underline-offset-2 hidden sm:inline"
+            href="/recruit/cast"
+            className="hidden text-[10px] font-bold text-[var(--recruit-rose)] underline underline-offset-2 sm:inline"
           >
             キャスト求人
           </Link>
-          <Link href="/" className="text-xs bg-slate-800 text-white px-3 py-1 rounded">
-            TOPへ
-          </Link>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="bg-gradient-to-r from-indigo-600 to-slate-800 text-white text-center py-14 px-4">
-        <h2 className="text-2xl md:text-4xl font-black mb-3 leading-tight">
-          店舗を支える
-          <br />
-          <span className="text-amber-200">スタッフ</span>を募集しています
-        </h2>
-        <p className="font-bold text-sm md:text-base mb-8 text-white/90 max-w-lg mx-auto">
-          ドライバー・受付・事務など、未経験からでもステップアップできる職場です。
-          <br />
-          <span className="text-white/70 text-xs">※キャスト（派遣）求人とは別の募集です</span>
-        </p>
-        <a
-          href="https://line.me/ti/p/Y_yyUiTXuW"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block bg-white text-indigo-700 font-black text-base md:text-lg px-8 py-4 rounded-full shadow-lg"
-        >
-          LINEで応募・お問い合わせ 💬
-        </a>
-      </div>
+      <section className="relative overflow-hidden px-4 pb-12 pt-12">
+        <RecruitSparkles />
+        <div className="relative mx-auto max-w-2xl text-center">
+          <p className="text-[11px] font-bold tracking-[0.45em] text-amber-500">STAFF RECRUIT</p>
+          <h1 className="mt-4 text-3xl font-extrabold leading-tight text-rose-900 md:text-4xl">
+            かわいい現場を、
+            <br />
+            <span className="bg-gradient-to-r from-amber-400 via-orange-400 to-pink-400 bg-clip-text text-transparent">
+              支える側へ。
+            </span>
+          </h1>
+          <p className="mx-auto mt-5 max-w-md text-sm leading-relaxed text-[var(--recruit-muted)]">
+            ドライバー・受付・事務など、{STORE.brand}の運営スタッフを募集しています。
+            <br />
+            <span className="text-xs text-pink-400">※キャスト（派遣）求人とは別の募集です</span>
+          </p>
 
-      <div className="max-w-4xl mx-auto p-4 grid md:grid-cols-3 gap-4 -mt-8">
-        <div className="bg-white p-6 rounded-xl shadow-lg text-center border border-slate-100">
-          <div className="text-4xl mb-2">🌱</div>
-          <h3 className="font-bold text-lg mb-2 text-slate-800">未経験OK</h3>
-          <p className="text-sm text-slate-700">業界・職種未経験でも丁寧に研修します。</p>
+          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <RecruitCta href={RECRUIT_LINE} variant="line" external>
+              LINEで応募・相談
+            </RecruitCta>
+            <RecruitCta href={`tel:${RECRUIT_PHONE_TEL}`} variant="ghost">
+              ☎ {RECRUIT_PHONE}
+            </RecruitCta>
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-xl shadow-lg text-center border border-slate-100">
-          <div className="text-4xl mb-2">⏰</div>
-          <h3 className="font-bold text-lg mb-2 text-slate-800">シフト相談OK</h3>
-          <p className="text-sm text-slate-700">曜日・時間はできる限り調整します。</p>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-lg text-center border border-slate-100">
-          <div className="text-4xl mb-2">🤝</div>
-          <h3 className="font-bold text-lg mb-2 text-slate-800">正社員・アルバイト</h3>
-          <p className="text-sm text-slate-700">雇用形態はポジションにより異なります（要相談）。</p>
-        </div>
-      </div>
+      </section>
 
-      <div className="max-w-2xl mx-auto mt-12 p-4">
-        <h3 className="text-xl font-black text-slate-800 text-center mb-2">募集職種（例）</h3>
-        <p className="text-center text-sm text-slate-600 mb-6">
-          随時更新します。詳細はLINEまたはお電話にてお問い合わせください。
-        </p>
-        <ul className="bg-white rounded-xl shadow border border-slate-100 divide-y divide-slate-100 text-sm text-slate-800 font-medium">
-          <li className="p-4 flex items-start gap-3">
-            <span className="text-lg shrink-0">🚗</span>
-            <span>送迎・ドライバー（要普通免許・経験者優遇）</span>
-          </li>
-          <li className="p-4 flex items-start gap-3">
-            <span className="text-lg shrink-0">📞</span>
-            <span>受付・電話対応・スケジュール調整</span>
-          </li>
-          <li className="p-4 flex items-start gap-3">
-            <span className="text-lg shrink-0">📋</span>
-            <span>事務・データ入力・各種サポート業務</span>
-          </li>
+      <section className="mx-auto max-w-2xl px-4 py-8">
+        <div className="mb-6 text-center">
+          <p className="text-[10px] font-bold tracking-[0.4em] text-amber-500">WHY STAFF</p>
+          <h2 className="mt-2 text-xl font-extrabold text-rose-900">働くメリット</h2>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {STAFF_HIGHLIGHTS.map((item) => (
+            <div
+              key={item.title}
+              className="rounded-2xl border border-amber-100 bg-white/85 p-5 text-center shadow-[0_10px_30px_rgba(245,200,76,0.1)]"
+            >
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-amber-50 text-amber-500">
+                {item.mark}
+              </span>
+              <h3 className="mt-3 font-extrabold text-[var(--recruit-ink)]">{item.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-[var(--recruit-muted)]">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-2xl px-4 py-8">
+        <div className="mb-6 text-center">
+          <p className="text-[10px] font-bold tracking-[0.4em] text-amber-500">OPEN ROLES</p>
+          <h2 className="mt-2 text-xl font-extrabold text-rose-900">募集職種</h2>
+          <p className="mt-2 text-sm text-[var(--recruit-muted)]">
+            詳細はLINEまたはお電話でご案内します。
+          </p>
+        </div>
+        <ul className="space-y-3">
+          {STAFF_ROLES.map((role) => (
+            <li
+              key={role.title}
+              className="rounded-2xl border border-amber-100 bg-white/90 p-5 shadow-[0_8px_24px_rgba(245,200,76,0.08)]"
+            >
+              <h3 className="font-extrabold text-rose-900">{role.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-[var(--recruit-muted)]">{role.desc}</p>
+            </li>
+          ))}
         </ul>
-      </div>
+      </section>
 
-      <div className="max-w-2xl mx-auto mt-10 p-4">
-        <h3 className="text-xl font-black text-slate-800 text-center mb-6">募集要項（目安）</h3>
-        <div className="bg-white rounded-lg shadow overflow-hidden border border-slate-100">
-          <table className="w-full text-sm text-left text-slate-700">
-            <tbody className="divide-y divide-slate-100">
-              <tr>
-                <th className="bg-slate-50 p-4 font-bold text-slate-700 w-1/3">職種</th>
-                <td className="p-4 font-medium">店舗運営スタッフ（上記いずれか）</td>
-              </tr>
-              <tr>
-                <th className="bg-slate-50 p-4 font-bold text-slate-700">勤務地</th>
-                <td className="p-4 font-medium">船橋エリア（詳細は応募時にご案内）</td>
-              </tr>
-              <tr>
-                <th className="bg-slate-50 p-4 font-bold text-slate-700">資格</th>
-                <td className="p-4 font-medium">
-                  18歳以上
-                  <br />
-                  ※ドライバーは要普通自動車免許
-                </td>
-              </tr>
-              <tr>
-                <th className="bg-slate-50 p-4 font-bold text-slate-700">給与</th>
-                <td className="p-4 font-medium">経験・ポジションにより応相談</td>
-              </tr>
-              <tr>
-                <th className="bg-slate-50 p-4 font-bold text-slate-700">時間</th>
-                <td className="p-4 font-medium">シフト制（詳細は面談時にご相談）</td>
-              </tr>
-            </tbody>
-          </table>
+      <section className="mx-auto max-w-2xl px-4 py-8">
+        <div className="mb-6 text-center">
+          <p className="text-[10px] font-bold tracking-[0.4em] text-amber-500">DETAILS</p>
+          <h2 className="mt-2 text-xl font-extrabold text-rose-900">募集要項（目安）</h2>
         </div>
-      </div>
+        <div className="overflow-hidden rounded-2xl border border-amber-100 bg-white/90 shadow-[0_10px_30px_rgba(245,200,76,0.08)]">
+          <dl className="divide-y divide-amber-50">
+            {[
+              ['職種', '店舗運営スタッフ（上記いずれか）'],
+              ['勤務地', `${STORE.area}エリア（詳細は応募時にご案内）`],
+              ['資格', '18歳以上 ※ドライバーは要普通自動車免許'],
+              ['給与', '経験・ポジションにより応相談'],
+              ['時間', 'シフト制（面談時にご相談）'],
+            ].map(([label, value]) => (
+              <div key={label} className="grid grid-cols-3 gap-3 px-5 py-4">
+                <dt className="text-[12px] font-bold text-amber-500">{label}</dt>
+                <dd className="col-span-2 text-sm font-medium text-[var(--recruit-ink)]">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
 
-      <div className="max-w-2xl mx-auto px-4 mt-10 text-center space-y-4">
-        <a
-          href="https://line.me/ti/p/Y_yyUiTXuW"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block w-full sm:w-auto bg-indigo-600 text-white font-black px-8 py-3 rounded-full shadow-md"
-        >
-          LINEで応募する
-        </a>
-        <div>
-          <Link href="/recruit" className="text-pink-600 font-bold underline text-sm">
-            キャスト（派遣）求人はこちら
-          </Link>
+      <section className="mx-auto max-w-2xl px-4 pb-8 pt-4 text-center">
+        <div className="rounded-[1.75rem] border border-amber-200 bg-gradient-to-br from-white via-amber-50 to-pink-50 px-6 py-10 shadow-[0_18px_50px_rgba(245,200,76,0.14)]">
+          <p className="text-lg font-extrabold text-rose-900">一緒に学園を盛り上げませんか</p>
+          <p className="mt-2 text-sm text-[var(--recruit-muted)]">
+            未経験の方も、まずはお気軽にご連絡ください。
+          </p>
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <RecruitCta href={RECRUIT_LINE} variant="line" external>
+              LINEで応募する
+            </RecruitCta>
+            <a
+              href={`tel:${RECRUIT_PHONE_TEL}`}
+              className="text-sm font-bold text-amber-600 underline underline-offset-4"
+            >
+              ☎ {RECRUIT_PHONE}
+            </a>
+          </div>
+          <div className="mt-6 space-y-2 text-sm">
+            <div>
+              <Link href="/recruit/cast" className="font-bold text-[var(--recruit-rose)] underline">
+                キャスト求人はこちら
+              </Link>
+            </div>
+            <div>
+              <Link href="/recruit" className="font-bold text-amber-500 underline">
+                求人トップへ戻る
+              </Link>
+            </div>
+          </div>
         </div>
-        <div>
-          <Link href="/chat" className="text-slate-600 font-bold underline text-sm">
-            サイト内チャットで問い合わせる
-          </Link>
-        </div>
-      </div>
-    </div>
+      </section>
+    </main>
   )
 }

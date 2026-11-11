@@ -5,13 +5,21 @@ import Link from 'next/link'
 import { useParams, notFound } from 'next/navigation'
 import ReviewForm from '@/components/ReviewForm'
 import GirlPricingSectionIdol from '@/components/GirlPricingSectionIdol'
-import { CRM_API_BASE, IDOL_STORE_ID } from '@/lib/crm-api'
+import IdolPlayList, { type IdolPlayItem } from '@/components/IdolPlayList'
+import { resolveCastStatusBadge } from '@/lib/crm/wait-status'
+import { getBusinessTodayString } from '@/lib/business-date'
+import { pickImageUrl, isPlaceholderImage } from '@/lib/crm/idol-schedule'
+import { IDOL_STORE_ID } from '@/lib/idol-reservation'
+
+const IDOL_PUBLIC_STORE_CODE = 'idol_funabashi'
 
 type GallerySlide = { candidates: string[] }
 
 function buildGallerySlidesFromCast(girl: Record<string, unknown>): GallerySlide[] {
   const pushUnique = (list: string[], u: unknown) => {
-    if (typeof u === 'string' && u.trim() && !list.includes(u)) list.push(u)
+    if (typeof u === 'string' && u.trim() && !isPlaceholderImage(u) && !list.includes(u)) {
+      list.push(u)
+    }
   }
   const primary: string[] = []
   pushUnique(primary, girl.idol_image_path)
@@ -29,7 +37,9 @@ function buildGallerySlidesFromCast(girl: Record<string, unknown>): GallerySlide
   if (primary.length > 0) slides.push({ candidates: primary })
   if (Array.isArray(gallery)) {
     for (const u of gallery) {
-      if (typeof u === 'string' && u.trim()) slides.push({ candidates: [u] })
+      if (typeof u === 'string' && u.trim() && !isPlaceholderImage(u)) {
+        slides.push({ candidates: [u] })
+      }
     }
   }
   return slides
@@ -67,44 +77,105 @@ function GalleryImageWithFallback({
 export default function GirlDetailPage() {
   const params = useParams()
   const [girl, setGirl] = useState<any>(null)
+  const [plays, setPlays] = useState<IdolPlayItem[]>([])
   const [reviews, setReviews] = useState<any[]>([]) // 口コミ用
   const [relatedGirls, setRelatedGirls] = useState<any[]>([]) // 関連キャスト用
   const [loading, setLoading] = useState(true)
+  const [todaySchedule, setTodaySchedule] = useState<any>(null)
   const [currentSlide, setCurrentSlide] = useState(0)
   const [touchStart, setTouchStart] = useState<number | null>(null)
-  const [debugContext, setDebugContext] = useState<any>(null)
   const sliderRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
+      setPlays([])
       try {
-        const res = await fetch(`${CRM_API_BASE}/idol/casts?store_id=${IDOL_STORE_ID}`, { cache: 'no-store' });
-        const data = await res.json();
-        const castsArray = Array.isArray(data) ? data : (data.casts || data.data || []);
-        
-        setDebugContext({
-          requestedId: params.id,
-          totalCasts: castsArray.length,
-          availableIds: castsArray.map((c: any) => c.id)
-        })
+        const crmBase = process.env.NEXT_PUBLIC_CRM_API_URL || 'https://crm.st-online.jp/api'
+        const id = String(params.id)
 
-        const currentGirl = castsArray.find((c: any) => c.id.toString() === params.id);
+        // 1件だけ取得（全在籍リストは使わない）
+        const [pRes, liteRes] = await Promise.all([
+          fetch(
+            `${crmBase}/public/casts/${encodeURIComponent(id)}?store_code=${IDOL_PUBLIC_STORE_CODE}`,
+            { cache: 'no-store' },
+          ),
+          fetch(`${crmBase}/idol/casts?store_id=${IDOL_STORE_ID}&lite=1`, {
+            next: { revalidate: 120 },
+          } as RequestInit),
+        ])
 
-        if (currentGirl) {
-          setGirl(currentGirl);
-          document.title = `${currentGirl?.name || 'キャスト'} | 船橋デリヘル アイドル学園`;
+        if (!pRes.ok) {
+          setGirl(null)
+          return
+        }
 
-          setReviews([]);
+        const pJson = await pRes.json()
+        const data = pJson?.data
+        if (!data) {
+          setGirl(null)
+          return
+        }
 
-          if (data.casts) {
-            const others = data.casts.filter((c: any) => c.id.toString() !== params.id).slice(0, 3);
-            setRelatedGirls(others);
+        const media = data.profile_media ?? {}
+        const gallery = Array.isArray(media.gallery_images) ? media.gallery_images : []
+        const profileImg = media.profile_image_url || media.thumbnail_url || null
+        const looks = data.public_profile?.looks ?? {}
+
+        const currentGirl = {
+          id: data.id,
+          name: data.name,
+          age: data.age,
+          status: data.status_label || '在籍',
+          idol_image_path: profileImg,
+          profile_image: profileImg,
+          image: profileImg,
+          gallery_images: gallery,
+          height: looks.height ?? data.height,
+          bust: looks.bust ?? data.bust,
+          waist: looks.waist ?? data.waist,
+          hip: looks.hip ?? data.hip,
+          is_new: Boolean(data.is_new),
+          is_debut_today: Boolean(data.is_debut_today),
+          manager_comment: data.manager_comment,
+          girl_comment: data.girl_comment,
+        }
+
+        setGirl(currentGirl)
+        document.title = `${currentGirl?.name || 'キャスト'} | 船橋デリヘル アイドル学園`
+
+        setReviews([])
+
+        const list = data.public_profile?.plays
+        setPlays(Array.isArray(list) ? list : [])
+
+        if (liteRes.ok) {
+          const liteJson = await liteRes.json()
+          const castsArray = liteJson.casts || liteJson.data || []
+          setRelatedGirls(
+            castsArray.filter((c: any) => String(c.id) !== id && String(c.cast_id) !== id).slice(0, 3),
+          )
+        }
+
+        try {
+          const today = getBusinessTodayString()
+          const sRes = await fetch(
+            `${crmBase}/idol/schedules?store_id=${IDOL_STORE_ID}&date=${today}&cast_id=${encodeURIComponent(id)}`,
+            { cache: 'no-store' },
+          )
+          if (sRes.ok) {
+            const sJson = await sRes.json()
+            const day = (sJson?.schedules || [])[0]
+            const sched =
+              (day?.casts || []).find((c: any) => Number(c?.cast_id) === Number(id)) ?? null
+            setTodaySchedule(sched)
           }
+        } catch (e) {
+          console.error('Failed to fetch today schedule', e)
         }
       } catch (err) {
-        console.error('Failed to fetch girl data', err);
+        console.error('Failed to fetch girl data', err)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
     }
     fetchData()
@@ -127,31 +198,30 @@ export default function GirlDetailPage() {
   }, [girl?.id])
 
   // 画像URLを取得するヘルパー関数（一覧・関連キャスト用）
-  const getImageUrl = (g: any) => {
-    if (g.idol_image_path) return g.idol_image_path
-    if (g.profile_image) return g.profile_image
-    if (g.images && g.images[0]) return g.images[0]
-    if (g.image) return g.image
-    if (g.image1_url) return g.image1_url
-    return null
-  }
+  const getImageUrl = (g: Record<string, unknown>) =>
+    pickImageUrl(
+      g.idol_image_path as string | null | undefined,
+      g.profile_image as string | null | undefined,
+      Array.isArray(g.images) ? (g.images[0] as string) : undefined,
+      g.image as string | null | undefined,
+      g.image1_url as string | null | undefined
+    )
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-400">読み込み中...</div>
   
   if (!girl) {
-    console.error("Girl not found for ID:", debugContext?.requestedId, "Available IDs:", debugContext?.availableIds);
     return notFound()
   }
 
   const gallerySlides = buildGallerySlidesFromCast(girl as Record<string, unknown>)
 
-  const nextStartTime = (() => {
-    const raw = girl?.today_hours
-    if (typeof raw !== 'string') return null
-    const m = raw.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/)
-    if (!m) return null
-    return m[1]
-  })()
+  const scheduleBadge = resolveCastStatusBadge({
+    waitStatus: todaySchedule?.wait_status,
+    attendEndTime: todaySchedule?.attend_end_time,
+    status: todaySchedule?.status || girl?.status,
+    isSokudol: todaySchedule?.is_sokudol === true,
+    useWaitStatus: true,
+  })
 
   const goToSlide = (index: number) => {
     if (index < 0) setCurrentSlide(gallerySlides.length - 1)
@@ -294,9 +364,18 @@ export default function GirlDetailPage() {
               {girl.today_hours || <span className="text-slate-400 text-xl">時間未定</span>}
             </div>
           </div>
-          {nextStartTime && (
-            <div className="text-[10px] font-bold mt-2 bg-pink-50 text-pink-700 inline-flex items-center gap-1 px-2 py-1 rounded border border-pink-100">
-              <span className="text-[11px]">✨</span> 次回 <span className="tabular-nums">{nextStartTime}</span> より
+          {scheduleBadge.showBadge && scheduleBadge.type === 'immediate' && (
+            <div className="text-[11px] font-black mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] rounded-full text-white bg-gradient-to-r from-pink-500 to-rose-500 shadow-sm shadow-pink-200 animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+              {scheduleBadge.text}
+            </div>
+          )}
+          {scheduleBadge.showBadge && scheduleBadge.type === 'busy' && (
+            <div className="text-[10px] font-bold mt-2 bg-slate-100 text-slate-600 inline-flex flex-col items-center gap-0.5 px-3 py-1.5 min-h-[44px] rounded border border-slate-200">
+              <span>{scheduleBadge.text}</span>
+              {scheduleBadge.subText ? (
+                <span className="text-[9px] tabular-nums">{scheduleBadge.subText}</span>
+              ) : null}
             </div>
           )}
         </div>
@@ -421,6 +500,9 @@ export default function GirlDetailPage() {
 
         {/* 5.5 料金表 + 概算 */}
         <GirlPricingSectionIdol girl={girl as Record<string, unknown>} />
+
+        {/* 5.6 プレイリスト（CRM public_profile.plays） */}
+        <IdolPlayList plays={plays} />
 
         {/* 6. 本人からのメッセージ */}
         {girl.message && (
@@ -572,7 +654,7 @@ export default function GirlDetailPage() {
             <div className="text-lg font-black leading-none tracking-tighter">050-1745-9665</div>
           </a>
 
-          <Link href="/student-council" className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-full flex items-center justify-center gap-2 py-2 shadow-lg active:scale-95 transition-transform hover:opacity-90 ring-2 ring-white ring-offset-2 ring-offset-blue-200">
+          <Link href={`/funabashi/reserve?cast=${encodeURIComponent(String(params.id))}`} className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-full flex items-center justify-center gap-2 py-2 shadow-lg active:scale-95 transition-transform hover:opacity-90 ring-2 ring-white ring-offset-2 ring-offset-blue-200">
             <div className="text-2xl animate-pulse">💬</div>
             <div className="flex flex-col leading-none">
                <div className="text-[10px] font-bold opacity-90">待たずに連絡</div>

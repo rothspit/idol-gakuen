@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "dailyLimit": 3,
+  "notes": "予約につながる語だけ。JK表現はコスプレコンセプト。done は再生成しない。GSC機会があれば優先。",
+  "items": [
+    {
+      "query": "船橋 デリヘル おすすめ",
+      "status": "done",
+      "doneAt": "2026-07-25T13:51:00.059Z",
+      "file": "001-daily-船橋-デリヘル-おすすめ.md",
+      "thumb": "/images/articles/001-daily-船橋-デリヘル-おすすめ.png"
+    },
+    {
+      "query": "西船橋 デリヘル",
+      "status": "done",
+      "doneAt": "2026-07-25T13:51:00.164Z",
+      "file": "002-daily-西船橋-デリヘル.md",
+      "thumb": "/images/articles/002-daily-西船橋-デリヘル.png"
+    },
+    {
+      "query": "船橋 デリヘル 料金",
+      "status": "done",
+      "doneAt": "2026-07-25T13:51:00.281Z",
+      "file": "003-daily-船橋-デリヘル-料金.md",
+      "thumb": "/images/articles/003-daily-船橋-デリヘル-料金.png"
+    },
+    {
+      "query": "船橋 ホテル デリヘル",
+      "status": "pending"
+    },
+    {
+      "query": "津田沼 デリヘル",
+      "status": "pending"
+    },
+    {
+      "query": "船橋 デリヘル 口コミ",
+      "status": "pending"
+    }
+  ]
+}

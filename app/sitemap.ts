@@ -1,59 +1,71 @@
 import type { MetadataRoute } from 'next'
-import { CRM_API_BASE, IDOL_STORE_ID } from '@/lib/crm-api'
+import { createClient } from '@supabase/supabase-js'
+import { getGuideSlugs } from '@/lib/seo/funabashi'
+import { SITE_URL } from '@/lib/seo/site'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+const CRM_BASE = process.env.NEXT_PUBLIC_CRM_API_URL || 'https://crm.h-mitsu.com/api'
+
+async function getCasts() {
+  try {
+    const res = await fetch(`${CRM_BASE}/idol/casts?store_id=2`, { cache: 'no-store' })
+    if (!res.ok) return []
+    const json = await res.json()
+    return json.casts || []
+  } catch {
+    return []
+  }
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://idolgakuen.jp'
+  const { data: idolBrand } = await supabase
+    .from('brands')
+    .select('id')
+    .eq('slug', 'idol-gakuen')
+    .single()
+
+  const { data: idolDiaries } = await supabase
+    .from('diaries')
+    .select('id, created_at')
+    .eq('brand_id', idolBrand?.id ?? '')
+
+  const casts = await getCasts()
 
   const staticPages: MetadataRoute.Sitemap = [
-    {
-      url: `${baseUrl}/funabashi`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 1,
-    },
-    {
-      url: `${baseUrl}/funabashi/home`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/girls`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/schedule`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/student-council`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.7,
-    },
+    { url: `${SITE_URL}/funabashi`, lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
+    { url: `${SITE_URL}/funabashi/guide`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.85 },
+    { url: `${SITE_URL}/girls`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
+    { url: `${SITE_URL}/recruit`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${SITE_URL}/recruit/cast`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.55 },
+    { url: `${SITE_URL}/recruit/staff`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.45 },
+    { url: `${SITE_URL}/movies`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.6 },
+    { url: `${SITE_URL}/diaries`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.7 },
   ]
 
-  try {
-    const res = await fetch(`${CRM_API_BASE}/idol/casts?store_id=${IDOL_STORE_ID}`, {
-      next: { revalidate: 3600 },
-    })
-    if (!res.ok) {
-      return staticPages
-    }
-    const json = await res.json()
-    const casts = json.casts ?? []
-    const castPages: MetadataRoute.Sitemap = casts.map((c: { cast_id?: number; id?: number }) => ({
-      url: `${baseUrl}/girls/${c.cast_id ?? c.id}`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly' as const,
-      priority: 0.6,
-    }))
-    return [...staticPages, ...castPages]
-  } catch {
-    return staticPages
-  }
+  const guidePages: MetadataRoute.Sitemap = getGuideSlugs().map((slug) => ({
+    url: `${SITE_URL}/funabashi/guide/${slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'monthly' as const,
+    priority: ['jk-style', 'price', 'hotel', 'ranking', 'reviews'].includes(slug) ? 0.88 : 0.8,
+  }))
+
+  const castPages: MetadataRoute.Sitemap = casts.map((cast: { id: number; updated_at?: string }) => ({
+    url: `${SITE_URL}/girls/${cast.id}`,
+    lastModified: cast.updated_at ? new Date(cast.updated_at) : new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.75,
+  }))
+
+  const idolDiaryPages: MetadataRoute.Sitemap = (idolDiaries ?? []).map((d) => ({
+    url: `${SITE_URL}/diaries/${d.id}`,
+    lastModified: d.created_at ? new Date(d.created_at) : new Date(),
+    changeFrequency: 'monthly' as const,
+    priority: 0.6,
+  }))
+
+  return [...staticPages, ...guidePages, ...castPages, ...idolDiaryPages]
 }

@@ -6,21 +6,32 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seo:fetch-csv": "node scripts/seo/fetch-gsc-queries.js --csv",
+    "seo:fetch-api": "node scripts/seo/fetch-gsc-queries.js --api --days 28",
+    "seo:find-rising": "node scripts/seo/find-rising-keywords.js",
+    "seo:find-rewrites": "node scripts/seo/find-rewrite-candidates.js",
+    "seo:daily": "node scripts/seo/daily-generate.js --dry-run --limit 3",
+    "seo:daily:run": "node scripts/seo/daily-generate.js --execute --limit 3",
+    "seo:to-png": "node scripts/seo/convert-to-png.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.985.0",
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.90.1",
     "@types/leaflet": "^1.9.21",
     "clsx": "^2.1.1",
     "framer-motion": "^12.34.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.562.0",
     "mailparser": "^3.9.3",
+    "marked": "^18.0.7",
     "next": "16.1.3",
     "nodemailer": "^7.0.13",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-leaflet": "^5.0.0",
+    "sharp": "^0.34.5",
     "swiper": "^12.1.0",
     "tailwind-merge": "^3.4.0"
   },
@@ -33,6 +44,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.3",
+    "googleapis": "^173.0.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

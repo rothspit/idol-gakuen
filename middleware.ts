@@ -87,12 +87,13 @@ function resolveRewrite(
 
   if (isPortal) return null
 
-  // idol-gakuen ドメイン — / を /funabashi へ（rewrite だと Next が https://localhost:3001 へ内部プロキシして 500 になるため redirect）
+  // idol-gakuen ドメイン
   if (brand.slug === 'idol-gakuen') {
     if (pathname === '/') {
-      const host = getHostname(req) || 'idolgakuen.jp'
-      const proto = req.headers.get('x-forwarded-proto') ?? 'https'
-      return new URL(`${proto}://${host}/funabashi`)
+      return new URL('/funabashi', req.url)
+    }
+    if (pathname === '/funabashi/home') {
+      return new URL('/funabashi', req.url)
     }
     return null
   }
@@ -133,17 +134,11 @@ export function middleware(req: NextRequest) {
     return res
   }
 
-  // --- URLリライト / リダイレクト ---
+  // --- URLリライト判定 ---
   const rewriteUrl = resolveRewrite(req, brand)
 
   if (rewriteUrl) {
-    // パスだけ変える場合は rewrite、トップ / は redirect URL を返す
-    if (req.nextUrl.pathname === '/' && brand.slug === 'idol-gakuen') {
-      const res = NextResponse.redirect(rewriteUrl, 308)
-      Object.entries(debugHeaders).forEach(([k, v]) => res.headers.set(k, v))
-      return res
-    }
-    const res = NextResponse.rewrite(rewriteUrl, { request: { headers: requestHeaders } })
+    const res = NextResponse.redirect(rewriteUrl, 308)
     Object.entries(debugHeaders).forEach(([k, v]) => res.headers.set(k, v))
     return res
   }
